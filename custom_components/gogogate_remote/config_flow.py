@@ -17,9 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("uid", description={"suggested_value": ""}): str,
+        vol.Required("uid", description={"suggested_value": "YOUR_UID"}): str,
         vol.Required("username", description={"suggested_value": "admin"}): str,
-        vol.Required("password"): str,
+        vol.Required("password", description={"suggested_value": "YOUR_PASSWORD"}): str,
     }
 )
 
@@ -63,7 +63,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             uid = user_input["uid"].strip().lower()
             username = user_input["username"].strip()
-            password = user_input["password"]
+            password = user_input["password"].strip()
 
             host = f"{uid}.my-gogogate.com"
             _LOGGER.info("Testing connection to %s for user %s", host, username)
