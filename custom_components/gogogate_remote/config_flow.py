@@ -17,9 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("uid", description={"suggested_value": "YOUR_UID"}): str,
-        vol.Required("username", description={"suggested_value": "admin"}): str,
-        vol.Required("password", description={"suggested_value": "YOUR_PASSWORD"}): str,
+        vol.Required("uid"): str,
+        vol.Required("username"): str,
+        vol.Required("password"): str,
     }
 )
 
