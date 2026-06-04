@@ -5,11 +5,12 @@ which is necessary when Home Assistant does not have access to the local network
 """
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 DOMAIN = "gogogate_remote"
 
-PLATFORMS = ["cover"]
+PLATFORMS = [Platform.COVER]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

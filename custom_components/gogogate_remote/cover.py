@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -49,7 +50,7 @@ async def async_setup_entry(
         _LOGGER,
         name=f"{DOMAIN}_{entry.entry_id}",
         update_method=async_update,
-        update_interval=SCAN_INTERVAL,
+        update_interval=timedelta(seconds=SCAN_INTERVAL),
     )
 
     await coordinator.async_config_entry_first_refresh()
@@ -98,12 +99,17 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
             "model": coordinator.data.get("model", "GGG2"),
             "sw_version": coordinator.data.get("firmware"),
         }
+        self._attr_is_closed = self._status_to_is_closed(
+            door.get("status")
+        )
 
-    @property
-    def is_closed(self) -> bool:
-        """Return True if the door is closed."""
-        door = self.coordinator.data.get(f"door{self._door_id}", {})
-        return door.get("status") == "closed"
+    @staticmethod
+    def _status_to_is_closed(status: str | None) -> bool | None:
+        if status == "closed":
+            return True
+        if status == "opened":
+            return False
+        return None
 
     @property
     def available(self) -> bool:
@@ -144,5 +150,5 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         door = self.coordinator.data.get(f"door{self._door_id}", {})
-        self._attr_is_closed = door.get("status") == "closed"
-        super()._handle_coordinator_update()
+        self._attr_is_closed = self._status_to_is_closed(door.get("status"))
+        self.async_write_ha_state()
