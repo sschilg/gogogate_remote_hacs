@@ -1,0 +1,7 @@
+{
+  "device_name": "Device Name",
+  "door_count": "Door Count",
+  "error_password": "Invalid password",
+  "error_invalid_uid": "Could not reach the device. Check that remote access is enabled and the UID is correct.",
+  "error_connection": "Could not connect to the device. Make sure it is powered on and connected to Wi-Fi."
+}
