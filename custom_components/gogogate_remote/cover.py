@@ -48,7 +48,7 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     _attr_device_class = CoverDeviceClass.GARAGE
     _attr_has_entity_name = True
     _attr_supported_features = (
-        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
     )
 
     def __init__(
@@ -62,12 +62,13 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
         self._api = api
         self._door_id = door_id
         door = coordinator.data.get(f"door{door_id}", {})
-        device_name = coordinator.data.get("name", "GoGoGate2")
+        device_name = coordinator.data.get("name") or "GoGoGate2"
+        uid = entry.unique_id or entry.entry_id
 
-        self._attr_name = door.get("name", f"Door {door_id}")
-        self._attr_unique_id = f"{entry.entry_id}_door{door_id}"
+        self._attr_name = door.get("name") or f"Door {door_id}"
+        self._attr_unique_id = f"{uid}_door{door_id}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
+            identifiers={(DOMAIN, uid)},
             name=device_name,
             manufacturer="GoGoGate",
             model=coordinator.data.get("model") or "GoGoGate2",
@@ -90,6 +91,9 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the garage door."""
+        if self.is_closed is False:
+            _LOGGER.debug("Door %s is already open, ignoring open request", self._door_id)
+            return
         try:
             await self.hass.async_add_executor_job(self._api.activate, self._door_id)
             await self.coordinator.async_request_refresh()
@@ -98,19 +102,14 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the garage door."""
+        if self.is_closed is True:
+            _LOGGER.debug("Door %s is already closed, ignoring close request", self._door_id)
+            return
         try:
             await self.hass.async_add_executor_job(self._api.activate, self._door_id)
             await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.error("Failed to close door %s: %s", self._door_id, err)
-
-    async def async_stop_cover(self, **kwargs: Any) -> None:
-        """Stop the garage door."""
-        try:
-            await self.hass.async_add_executor_job(self._api.activate, self._door_id)
-            await self.coordinator.async_request_refresh()
-        except Exception as err:
-            _LOGGER.error("Failed to stop door %s: %s", self._door_id, err)
 
     @callback
     def _handle_coordinator_update(self) -> None:

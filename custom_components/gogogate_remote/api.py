@@ -124,12 +124,12 @@ class GogoGate2API:
     def _parse_info(xml: str) -> dict[str, Any]:
         """Parse the XML info response into a dict."""
         result: dict[str, Any] = {
-            "user": _xml_tag(xml, "user"),
-            "name": _xml_tag(xml, "gogogatename"),
-            "model": _xml_tag(xml, "model"),
-            "firmware": _xml_tag(xml, "firmwareversion"),
-            "apiversion": _xml_tag(xml, "apiversion"),
-            "apicode": _xml_tag(xml, "apicode"),
+            "user": _xml_tag(xml, "user").strip(),
+            "name": _xml_tag(xml, "gogogatename").strip(),
+            "model": _xml_tag(xml, "model").strip(),
+            "firmware": _xml_tag(xml, "firmwareversion").strip(),
+            "apiversion": _xml_tag(xml, "apiversion").strip(),
+            "apicode": _xml_tag(xml, "apicode").strip(),
         }
 
         for door_id in [1, 2, 3]:
@@ -141,12 +141,12 @@ class GogoGate2API:
             block = xml[start:end]
             door = {
                 "door_id": door_id,
-                "name": _xml_inner(block, "name"),
-                "status": _xml_inner(block, "status"),
-                "mode": _xml_inner(block, "mode"),
-                "sensor": _xml_inner(block, "sensor") == "yes",
-                "camera": _xml_inner(block, "camera") == "yes",
-                "permission": _xml_inner(block, "permission") == "yes",
+                "name": _xml_inner(block, "name").strip(),
+                "status": _xml_inner(block, "status").strip().lower(),
+                "mode": _xml_inner(block, "mode").strip().lower(),
+                "sensor": _xml_inner(block, "sensor").strip().lower() == "yes",
+                "camera": _xml_inner(block, "camera").strip().lower() == "yes",
+                "permission": _xml_inner(block, "permission").strip().lower() == "yes",
                 "temperature": _xml_float(block, "temperature"),
                 "voltage": _xml_int(block, "voltage"),
             }
