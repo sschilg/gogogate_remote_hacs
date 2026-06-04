@@ -1,7 +1,23 @@
 {
-  "device_name": "Device Name",
-  "door_count": "Door Count",
-  "error_password": "Invalid password",
-  "error_invalid_uid": "Could not reach the device. Check that remote access is enabled and the UID is correct.",
-  "error_connection": "Could not connect to the device. Make sure it is powered on and connected to Wi-Fi."
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up GoGoGate2 Remote",
+        "description": "Enter your GoGoGate2 device details. The UID is the 10-character ID printed on your device.",
+        "data": {
+          "uid": "GoGoGate UID",
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the device. Make sure remote access is enabled, the UID is correct, and the device is online.",
+      "invalid_auth": "Authentication failed. Check your username and password.",
+      "unknown": "An unexpected error occurred. Please try again."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
 }

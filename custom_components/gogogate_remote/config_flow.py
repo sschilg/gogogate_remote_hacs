@@ -9,6 +9,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from .api import GogoGate2API
 from .const import DOMAIN
@@ -24,11 +25,11 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-class GogoGate2CannotConnect(config_entries.AbortFlow):
+class GogoGate2CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
 
 
-class GogoGate2AuthError(config_entries.AbortFlow):
+class GogoGate2AuthError(HomeAssistantError):
     """Error to indicate authentication failure."""
 
 
@@ -41,28 +42,16 @@ async def _test_connection(
         info = await hass.async_add_executor_job(api.get_info)
     except ConnectionError as err:
         _LOGGER.error("Connection error: %s", err)
-        raise GogoGate2CannotConnect(
-            description_placeholders={"error": str(err)}
-        ) from err
+        raise GogoGate2CannotConnect from err
     except Exception as err:
         _LOGGER.error("Unexpected error: %s", err)
-        raise GogoGate2CannotConnect(
-            description_placeholders={"error": str(err)}
-        ) from err
+        raise GogoGate2CannotConnect from err
 
-    # Check that we got a valid response with expected fields
     if not info.get("model"):
-        raise GogoGate2CannotConnect(
-            description_placeholders={"error": "Response missing device model — check your UID is correct"}
-        )
+        raise GogoGate2CannotConnect
 
-    # Check for credential errors (API returns error in XML)
     if "error" in info:
-        raise GogoGate2AuthError(
-            description_placeholders={
-                "error": info["error"]
-            }
-        )
+        raise GogoGate2AuthError
 
     return info
 
