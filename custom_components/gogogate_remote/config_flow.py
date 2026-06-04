@@ -9,7 +9,6 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 
 from .api import GogoGate2API
 from .const import DOMAIN
@@ -25,14 +24,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-class GogoGate2CannotConnect(HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class GogoGate2AuthError(HomeAssistantError):
-    """Error to indicate authentication failure."""
-
-
 async def _test_connection(
     hass: HomeAssistant, host: str, username: str, password: str
 ) -> dict[str, Any]:
@@ -40,18 +31,20 @@ async def _test_connection(
     api = GogoGate2API(host, username, password)
     try:
         info = await hass.async_add_executor_job(api.get_info)
-    except ConnectionError as err:
-        _LOGGER.error("Connection error: %s", err)
-        raise GogoGate2CannotConnect from err
+        _LOGGER.debug("Got info from device: %s", info)
     except Exception as err:
-        _LOGGER.error("Unexpected error: %s", err)
-        raise GogoGate2CannotConnect from err
+        _LOGGER.error("Connection to %s failed: %s", host, err, exc_info=True)
+        raise ConnectionError(str(err)) from err
 
+    # Check that we got a valid response with expected fields
     if not info.get("model"):
-        raise GogoGate2CannotConnect
+        _LOGGER.error("Response missing device model, got keys: %s", list(info.keys()))
+        raise ConnectionError("Response missing device model — check your UID is correct")
 
+    # Check for credential errors (API returns <error> in XML)
     if "error" in info:
-        raise GogoGate2AuthError
+        _LOGGER.error("API returned error: %s", info["error"])
+        raise ConnectionError(f"API error: {info['error']}")
 
     return info
 
@@ -73,14 +66,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             password = user_input["password"]
 
             host = f"{uid}.my-gogogate.com"
+            _LOGGER.info("Testing connection to %s for user %s", host, username)
 
-            # Test the connection
             try:
                 info = await _test_connection(self.hass, host, username, password)
-            except GogoGate2CannotConnect as exc:
-                errors["base"] = "cannot_connect"
-            except GogoGate2AuthError:
-                errors["base"] = "invalid_auth"
+            except ConnectionError as exc:
+                msg = str(exc)
+                _LOGGER.error("Cannot connect to %s: %s", host, msg)
+                if "credential" in msg.lower() or "password" in msg.lower():
+                    errors["base"] = "invalid_auth"
+                else:
+                    errors["base"] = "cannot_connect"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error during config flow")
                 errors["base"] = "unknown"
