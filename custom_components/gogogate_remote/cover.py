@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -13,19 +12,14 @@ from homeassistant.components.cover import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .api import GogoGate2API
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-SCAN_INTERVAL = 30
 
 
 async def async_setup_entry(
@@ -34,35 +28,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the GoGoGate2 Remote cover platform."""
-    data = entry.data
-
-    api = GogoGate2API(data["host"], data["username"], data["password"])
-
-    async def async_update():
-        """Fetch data from the API."""
-        try:
-            return await hass.async_add_executor_job(api.get_info)
-        except Exception as err:
-            raise UpdateFailed(f"Error communicating with GoGoGate2: {err}") from err
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name=f"{DOMAIN}_{entry.entry_id}",
-        update_method=async_update,
-        update_interval=timedelta(seconds=SCAN_INTERVAL),
-    )
-
-    await coordinator.async_config_entry_first_refresh()
-
-    entities = []
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    coordinator: DataUpdateCoordinator = entry_data["coordinator"]
+    api: GogoGate2API = entry_data["api"]
     info = coordinator.data
 
+    entities = []
     for door_id in [1, 2, 3]:
         door = info.get(f"door{door_id}", {})
-        if door.get("name"):
-            entities.append(GogoGate2Cover(coordinator, api, door_id, entry))
-        elif door.get("status") not in ("undefined", ""):
+        if door.get("name") or door.get("status") not in ("undefined", "", None):
             entities.append(GogoGate2Cover(coordinator, api, door_id, entry))
 
     async_add_entities(entities)
@@ -72,6 +46,7 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     """Representation of a GoGoGate2 garage door."""
 
     _attr_device_class = CoverDeviceClass.GARAGE
+    _attr_has_entity_name = True
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
     )
@@ -86,22 +61,19 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
         super().__init__(coordinator)
         self._api = api
         self._door_id = door_id
-        self._entry_id = entry.entry_id
         door = coordinator.data.get(f"door{door_id}", {})
-        name = door.get("name", f"Door {door_id}")
         device_name = coordinator.data.get("name", "GoGoGate2")
-        self._attr_name = name
+
+        self._attr_name = door.get("name", f"Door {door_id}")
         self._attr_unique_id = f"{entry.entry_id}_door{door_id}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": device_name,
-            "manufacturer": "GoGoGate",
-            "model": coordinator.data.get("model", "GGG2"),
-            "sw_version": coordinator.data.get("firmware"),
-        }
-        self._attr_is_closed = self._status_to_is_closed(
-            door.get("status")
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=device_name,
+            manufacturer="GoGoGate",
+            model=coordinator.data.get("model") or "GoGoGate2",
+            sw_version=coordinator.data.get("firmware") or None,
         )
+        self._attr_is_closed = self._status_to_is_closed(door.get("status"))
 
     @staticmethod
     def _status_to_is_closed(status: str | None) -> bool | None:
@@ -119,9 +91,7 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the garage door."""
         try:
-            await self.hass.async_add_executor_job(
-                self._api.activate, self._door_id
-            )
+            await self.hass.async_add_executor_job(self._api.activate, self._door_id)
             await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.error("Failed to open door %s: %s", self._door_id, err)
@@ -129,9 +99,7 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the garage door."""
         try:
-            await self.hass.async_add_executor_job(
-                self._api.activate, self._door_id
-            )
+            await self.hass.async_add_executor_job(self._api.activate, self._door_id)
             await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.error("Failed to close door %s: %s", self._door_id, err)
@@ -139,9 +107,7 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the garage door."""
         try:
-            await self.hass.async_add_executor_job(
-                self._api.activate, self._door_id
-            )
+            await self.hass.async_add_executor_job(self._api.activate, self._door_id)
             await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.error("Failed to stop door %s: %s", self._door_id, err)
