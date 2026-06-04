@@ -1,0 +1,7 @@
+{
+  "name": "GoGoGate2 Remote",
+  "render_readme": true,
+  "homeassistant": "2023.1.0",
+  "zip_release": false,
+  "filename": "gogogate_remote_hacs.zip"
+}

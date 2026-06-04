@@ -1,0 +1,11 @@
+{
+  "domain": "gogogate_remote",
+  "name": "GoGoGate2 Remote",
+  "codeowners": ["@sschilg"],
+  "config_flow": true,
+  "documentation": "https://github.com/sschilg/gogogate_remote_hacs",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/sschilg/gogogate_remote_hacs/issues",
+  "requirements": ["pycryptodome", "requests"],
+  "version": "1.0.0"
+}
