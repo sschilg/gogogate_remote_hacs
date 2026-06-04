@@ -5,11 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import requests
-import voluptuous as vol
-
 from homeassistant.components.cover import (
-    ATTR_POSITION,
     CoverDeviceClass,
     CoverEntity,
     CoverEntityFeature,
@@ -45,10 +41,8 @@ async def async_setup_entry(
         """Fetch data from the API."""
         try:
             return await hass.async_add_executor_job(api.get_info)
-        except requests.exceptions.RequestException as err:
-            raise UpdateFailed(f"Error communicating with GoGoGate2: {err}") from err
         except Exception as err:
-            raise UpdateFailed(f"Unexpected error: {err}") from err
+            raise UpdateFailed(f"Error communicating with GoGoGate2: {err}") from err
 
     coordinator = DataUpdateCoordinator(
         hass,
@@ -68,7 +62,6 @@ async def async_setup_entry(
         if door.get("name"):
             entities.append(GogoGate2Cover(coordinator, api, door_id, entry))
         elif door.get("status") not in ("undefined", ""):
-            # Door configured but has no name — still include it
             entities.append(GogoGate2Cover(coordinator, api, door_id, entry))
 
     async_add_entities(entities)
@@ -111,16 +104,6 @@ class GogoGate2Cover(CoordinatorEntity, CoverEntity):
         """Return True if the door is closed."""
         door = self.coordinator.data.get(f"door{self._door_id}", {})
         return door.get("status") == "closed"
-
-    @property
-    def is_opening(self) -> bool:
-        """Return True if the door is opening."""
-        return False  # GoGoGate2 doesn't report transitional states
-
-    @property
-    def is_closing(self) -> bool:
-        """Return True if the door is closing."""
-        return False  # GoGoGate2 doesn't report transitional states
 
     @property
     def available(self) -> bool:

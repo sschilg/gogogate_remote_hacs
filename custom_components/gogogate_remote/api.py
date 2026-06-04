@@ -6,23 +6,15 @@ import base64
 import json
 import logging
 import uuid
-import urllib.parse
 from typing import Any
-
-import requests
-from Crypto.Cipher import AES
-import urllib3
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _LOGGER = logging.getLogger(__name__)
 
 SHARED_SECRET = "0e3b7%i1X9@54cAf"
-KEY_BYTES = SHARED_SECRET.encode("utf-8")
 
 
 def _pad_pkcs5(data: str) -> str:
-    block_size = AES.block_size
+    block_size = 16  # AES.block_size
     return data + (block_size - len(data) % block_size) * chr(
         block_size - len(data) % block_size
     )
@@ -33,16 +25,22 @@ def _unpad_pkcs5(data: bytes) -> bytes:
 
 
 def _encrypt(content: str) -> str:
+    from Crypto.Cipher import AES
+
+    key_bytes = SHARED_SECRET.encode("utf-8")
     iv_bytes = _pad_pkcs5(uuid.uuid4().hex).encode("utf-8")[: AES.block_size]
-    cipher = AES.new(KEY_BYTES, AES.MODE_CBC, iv_bytes)
+    cipher = AES.new(key_bytes, AES.MODE_CBC, iv_bytes)
     encrypted = cipher.encrypt(_pad_pkcs5(content).encode("utf-8"))
     return (iv_bytes + base64.b64encode(encrypted)).decode("utf-8")
 
 
 def _decrypt(content: str) -> str:
+    from Crypto.Cipher import AES
+
+    key_bytes = SHARED_SECRET.encode("utf-8")
     iv = content.encode("utf-8")[: AES.block_size]
     encrypted = base64.b64decode(content[AES.block_size :])
-    cipher = AES.new(KEY_BYTES, AES.MODE_CBC, iv)
+    cipher = AES.new(key_bytes, AES.MODE_CBC, iv)
     return _unpad_pkcs5(cipher.decrypt(encrypted)).decode("utf-8")
 
 
@@ -57,8 +55,15 @@ class GogoGate2API:
         self._password = password
         self._api_url = f"{self._host}/api.php"
         self._timeout = timeout
-        self._session = requests.Session()
-        self._session.verify = False
+
+    def _get_session(self):
+        import requests
+        import urllib3
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        session = requests.Session()
+        session.verify = False
+        return session
 
     def _api_call(self, option: str, arg1: str = "", arg2: str = "") -> str:
         """Send an encrypted API request and return decrypted XML response."""
@@ -67,7 +72,8 @@ class GogoGate2API:
         )
         encrypted = _encrypt(payload)
 
-        resp = self._session.get(
+        session = self._get_session()
+        resp = session.get(
             self._api_url,
             params={"data": encrypted},
             timeout=self._timeout,
